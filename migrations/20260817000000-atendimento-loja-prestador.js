@@ -16,39 +16,66 @@
  * máximo 4 opções), sem atributo próprio por item — a mesma razão por que
  * `notificacao.constants.js` trata canal como enum e não como tabela.
  */
+/**
+ * Numa transação, e checando coluna a coluna antes de adicionar.
+ *
+ * O boot em produção roda `db:migrate` sozinho (Maturacao — deploy no
+ * EasyPanel); se o processo cair no meio desta migração (container
+ * reiniciado, deploy interrompido), as colunas já criadas ficavam prontas
+ * mas `SequelizeMeta` nunca era gravada — o próximo boot tentava criar tudo
+ * de novo e quebrava em "column already exists". A transação garante tudo
+ * ou nada, e o `describeTable` cobre quem já ficou pela metade antes desta
+ * correção existir.
+ */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('perfis', 'formas_entrega', {
-      type: Sequelize.ARRAY(Sequelize.STRING(20)),
-      allowNull: false,
-      defaultValue: [],
-      comment: 'loja',
-    });
+    await queryInterface.sequelize.transaction(async (transaction) => {
+      const colunas = await queryInterface.describeTable('perfis');
 
-    await queryInterface.addColumn('perfis', 'raio_entrega_km', {
-      type: Sequelize.INTEGER,
-      allowNull: true,
-      comment: 'loja',
-    });
+      if (!colunas.formas_entrega) {
+        await queryInterface.addColumn(
+          'perfis',
+          'formas_entrega',
+          { type: Sequelize.ARRAY(Sequelize.STRING(20)), allowNull: false, defaultValue: [], comment: 'loja' },
+          { transaction }
+        );
+      }
 
-    await queryInterface.addColumn('perfis', 'prazo_resposta_horas', {
-      type: Sequelize.INTEGER,
-      allowNull: true,
-      comment: 'loja',
-    });
+      if (!colunas.raio_entrega_km) {
+        await queryInterface.addColumn(
+          'perfis',
+          'raio_entrega_km',
+          { type: Sequelize.INTEGER, allowNull: true, comment: 'loja' },
+          { transaction }
+        );
+      }
 
-    await queryInterface.addColumn('perfis', 'formas_atendimento', {
-      type: Sequelize.ARRAY(Sequelize.STRING(20)),
-      allowNull: false,
-      defaultValue: [],
-      comment: 'prestador',
+      if (!colunas.prazo_resposta_horas) {
+        await queryInterface.addColumn(
+          'perfis',
+          'prazo_resposta_horas',
+          { type: Sequelize.INTEGER, allowNull: true, comment: 'loja' },
+          { transaction }
+        );
+      }
+
+      if (!colunas.formas_atendimento) {
+        await queryInterface.addColumn(
+          'perfis',
+          'formas_atendimento',
+          { type: Sequelize.ARRAY(Sequelize.STRING(20)), allowNull: false, defaultValue: [], comment: 'prestador' },
+          { transaction }
+        );
+      }
     });
   },
 
   async down(queryInterface) {
-    await queryInterface.removeColumn('perfis', 'formas_entrega');
-    await queryInterface.removeColumn('perfis', 'raio_entrega_km');
-    await queryInterface.removeColumn('perfis', 'prazo_resposta_horas');
-    await queryInterface.removeColumn('perfis', 'formas_atendimento');
+    await queryInterface.sequelize.transaction(async (transaction) => {
+      await queryInterface.removeColumn('perfis', 'formas_entrega', { transaction });
+      await queryInterface.removeColumn('perfis', 'raio_entrega_km', { transaction });
+      await queryInterface.removeColumn('perfis', 'prazo_resposta_horas', { transaction });
+      await queryInterface.removeColumn('perfis', 'formas_atendimento', { transaction });
+    });
   },
 };
