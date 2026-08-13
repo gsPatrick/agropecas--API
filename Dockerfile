@@ -14,7 +14,10 @@ COPY . .
 
 RUN mkdir -p uploads
 
+# fixo em 80: é a porta padrão que o proxy do EasyPanel espera — o app lê
+# APP_PORT (não a variável genérica PORT), então precisa vir explícito aqui
 ENV NODE_ENV=production
-EXPOSE 3333
+ENV APP_PORT=80
+EXPOSE 80
 
 CMD ["node", "app.js"]
