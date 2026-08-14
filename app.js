@@ -97,6 +97,44 @@ async function migrarEPopular() {
   execSync('npx sequelize-cli db:seed:all', { stdio: 'inherit' });
 }
 
+/**
+ * Bootstrap de admin — promove e-mails de `ADMIN_BOOTSTRAP_EMAILS` (lista
+ * separada por vírgula) ao papel `admin`, se a conta já existir.
+ *
+ * Existe porque não há endpoint de API para isto (autopromoção seria uma
+ * falha de segurança) e este ambiente não tem acesso direto ao Postgres —
+ * então o boot vira o único lugar disponível para conceder o primeiro admin.
+ * `findOrCreate` na tabela usa o índice único (usuario_id, papel_id), então
+ * rodar de novo em todo boot não duplica nem escreve à toa.
+ */
+async function promoverAdminsBootstrap() {
+  const emails = (process.env.ADMIN_BOOTSTRAP_EMAILS || 'admin.teste@agropecasmt.dev')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!emails.length) return;
+
+  const db = require('./src/models');
+  const papelAdmin = await db.Papel.findOne({ where: { chave: 'admin' } });
+  if (!papelAdmin) {
+    console.warn('[admin-bootstrap] papel "admin" não encontrado — RBAC ainda não foi sincronizado?');
+    return;
+  }
+
+  for (const email of emails) {
+    const usuario = await db.Usuario.findOne({ where: { email_normalizado: email } });
+    if (!usuario) continue;
+
+    const [, criado] = await db.UsuarioPapel.findOrCreate({
+      where: { usuario_id: usuario.id, papel_id: papelAdmin.id },
+      defaults: { usuario_id: usuario.id, papel_id: papelAdmin.id },
+    });
+
+    if (criado) console.log(`[admin-bootstrap] ${email} promovido a admin`);
+  }
+}
+
 async function iniciar() {
   try {
     await sequelize.authenticate();
@@ -111,6 +149,12 @@ async function iniciar() {
   } catch (erro) {
     console.error('[db] falha ao migrar/popular:', erro.message);
     if (config.app.env === 'production') process.exit(1);
+  }
+
+  try {
+    await promoverAdminsBootstrap();
+  } catch (erro) {
+    console.error('[admin-bootstrap] falha:', erro.message);
   }
 
   /* Redis é opcional: sem ele, cache cai para memória e job roda na hora.
