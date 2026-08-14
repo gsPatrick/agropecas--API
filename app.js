@@ -7,6 +7,7 @@
  */
 
 /* o .env é carregado por src/config — a fronteira do ambiente é lá */
+const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -62,6 +63,18 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+/**
+ * Serve os arquivos enviados (`STORAGE_DRIVER=local`) no mesmo caminho que
+ * `src/providers/storage/index.js` já monta a URL pública
+ * (`STORAGE_PUBLIC_URL + '/' + caminho`) — sem isto, toda foto de anúncio ou
+ * de perfil tinha URL válida no banco mas 404 de verdade no navegador,
+ * porque nada aqui respondia por `/uploads`. Fica de fora do driver de nuvem
+ * (S3/R2), que serve direto do provedor.
+ */
+if (config.storage.driver === 'local') {
+  app.use('/uploads', express.static(path.resolve(config.storage.localPath)));
+}
 
 /* monta req.contexto antes de qualquer rota: middlewares e services contam
    com ele existindo, mesmo para visitante */
