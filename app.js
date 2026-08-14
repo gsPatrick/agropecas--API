@@ -135,6 +135,49 @@ async function promoverAdminsBootstrap() {
   }
 }
 
+/**
+ * Conta demo com perfil vazio de propósito — para o assistente de primeiro
+ * acesso (onboarding) do front disparar assim que alguém logar com ela.
+ *
+ * Chama o próprio `POST /auth/registrar` via loopback em vez de tocar o
+ * banco direto: é o mesmo caminho que qualquer cadastro real passa
+ * (hash de senha, consentimentos, criação do perfil), então a conta nasce
+ * exatamente como a de um usuário de verdade nasceria — sem outro cadastro
+ * "de mentira" que a `auth.registro.service` não reconheceria depois.
+ * 409 (e-mail já cadastrado) é o caminho normal a partir do segundo boot.
+ */
+async function criarContaDemoBootstrap() {
+  const email = (process.env.DEMO_ONBOARDING_EMAIL || 'novo.teste@agropecasmt.dev').toLowerCase();
+  const url = `http://127.0.0.1:${config.app.port}${config.app.apiPrefix}/v1/auth/registrar`;
+
+  const resposta = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nome: 'Novo Produtor',
+      email,
+      senha: 'AgroPecas#2026',
+      tipoPerfil: 'produtor',
+      aceiteTermos: true,
+      aceitePrivacidade: true,
+    }),
+  });
+
+  const corpo = await resposta.json().catch(() => null);
+
+  if (resposta.status === 409) {
+    console.log(`[demo-bootstrap] ${email} já existe`);
+    return;
+  }
+
+  if (!resposta.ok) {
+    console.warn(`[demo-bootstrap] falha ao criar ${email}:`, corpo?.erro?.mensagem || resposta.status);
+    return;
+  }
+
+  console.log(`[demo-bootstrap] ${email} criado — perfil vazio, onboarding dispara no primeiro login`);
+}
+
 async function iniciar() {
   try {
     await sequelize.authenticate();
@@ -164,6 +207,7 @@ async function iniciar() {
 
   const servidor = app.listen(config.app.port, () => {
     console.log(`[api] ouvindo em http://localhost:${config.app.port}${config.app.apiPrefix}`);
+    criarContaDemoBootstrap().catch((erro) => console.warn('[demo-bootstrap] falha:', erro.message));
   });
 
   /* o WebSocket compartilha o mesmo servidor HTTP: porta separada exigiria
