@@ -21,7 +21,14 @@ let io = null;
 
 async function iniciar(servidorHttp) {
   io = new Server(servidorHttp, {
-    cors: { origin: config.seguranca.corsOrigens, credentials: true },
+    /* mesma regra do CORS do Express (`app.js`): CORS_ORIGENS=* precisa virar
+       `true` (reflete a origem da requisição) — um array `['*']` não é
+       reconhecido como coringa pelo pacote `cors` por baixo do Socket.IO, ele
+       comparava literalmente a string "*" contra a origem e sempre recusava */
+    cors: {
+      origin: config.seguranca.corsOrigens.includes('*') ? true : config.seguranca.corsOrigens,
+      credentials: true,
+    },
     path: '/tempo-real',
     /* o cliente rural cai de rede o tempo todo: janela generosa de reconexão
        evita recriar sessão de socket a cada oscilação de sinal */
