@@ -50,7 +50,10 @@ app.use(
 
 app.use(
   cors({
-    origin: config.seguranca.corsOrigens,
+    /* CORS_ORIGENS=* libera qualquer origem — `true` faz o pacote refletir o
+       Origin da requisição; `'*'` literal quebraria com `credentials: true`,
+       que o cookie de sessão exige */
+    origin: config.seguranca.corsOrigens.includes('*') ? true : config.seguranca.corsOrigens,
     credentials: true,
     exposedHeaders: ['X-Request-Id', 'Retry-After'],
   })

@@ -68,7 +68,7 @@ module.exports = {
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
     jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
     bcryptRounds: Number(process.env.BCRYPT_ROUNDS || 12),
-    corsOrigens: (process.env.CORS_ORIGENS || 'http://localhost:3000')
+    corsOrigens: (process.env.CORS_ORIGENS || '*')
       .split(',')
       .map((origem) => origem.trim())
       .filter(Boolean),
