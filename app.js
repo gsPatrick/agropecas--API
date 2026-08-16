@@ -8,6 +8,7 @@
 
 /* o .env é carregado por src/config — a fronteira do ambiente é lá */
 const path = require('path');
+const fs = require('fs/promises');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -191,6 +192,178 @@ async function criarContaDemoBootstrap() {
   console.log(`[demo-bootstrap] ${email} criado — perfil vazio, onboarding dispara no primeiro login`);
 }
 
+/**
+ * Vitrine de demonstração — um produtor com perfil completo e 3 anúncios
+ * publicados, com foto, para a cliente ver a plataforma funcionando de
+ * verdade em vez de uma tela vazia.
+ *
+ * Tudo passa pelo próprio HTTP da API (loopback), nunca por escrita direta no
+ * banco — mesmo motivo do `criarContaDemoBootstrap`: nasce pelo caminho real
+ * (hash de senha, validação, moderação, processamento de imagem), então é
+ * indistinguível de uma conta e um anúncio publicados por uma pessoa.
+ *
+ * Idempotente por checagem, não por `findOrCreate`: loga primeiro; se a conta
+ * já existe E já tem anúncio, não faz nada. Assim um redeploy não duplica os
+ * 3 anúncios a cada boot.
+ */
+async function criarVitrineDemoBootstrap() {
+  const base = `http://127.0.0.1:${config.app.port}${config.app.apiPrefix}/v1`;
+  const email = 'demo.produtor@agropecasmt.dev';
+  const senha = 'AgroPecas#2026';
+
+  const chamar = (caminho, opcoes = {}) =>
+    fetch(`${base}${caminho}`, opcoes).then(async (resposta) => ({
+      ok: resposta.ok,
+      status: resposta.status,
+      corpo: await resposta.json().catch(() => null),
+    }));
+
+  let { ok, corpo } = await chamar('/auth/entrar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, senha }),
+  });
+
+  if (!ok) {
+    const municipio = await chamar(
+      `/localizacao/municipios?uf=MT&busca=${encodeURIComponent('Cuiabá')}&porPagina=1`
+    );
+    const municipioId = municipio.corpo?.dados?.[0]?.id;
+
+    const registro = await chamar('/auth/registrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: 'Carlos Mendes',
+        email,
+        senha,
+        tipoPerfil: 'produtor',
+        documento: '88687816464',
+        whatsapp: '+5565999998888',
+        telefone: '+5565999998888',
+        propriedadeNome: 'Fazenda Modelo',
+        municipioId,
+        aceiteTermos: true,
+        aceitePrivacidade: true,
+      }),
+    });
+
+    if (!registro.ok) {
+      console.warn('[vitrine-demo] falha ao registrar:', registro.corpo?.erro?.mensagem || registro.status);
+      return;
+    }
+
+    ({ ok, corpo } = registro);
+  }
+
+  const token = corpo?.dados?.tokens?.acesso;
+  if (!token) {
+    console.warn('[vitrine-demo] sem token de acesso, abortando');
+    return;
+  }
+
+  const autorizado = { Authorization: `Bearer ${token}` };
+
+  const meusAnuncios = await chamar('/anuncios/meus?porPagina=1', { headers: autorizado });
+  if ((meusAnuncios.corpo?.meta?.total || 0) > 0) {
+    console.log(`[vitrine-demo] ${email} já tem anúncio — nada a fazer`);
+    return;
+  }
+
+  await chamar('/perfis/meu', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...autorizado },
+    body: JSON.stringify({
+      bio: 'Produtor rural em Cuiabá/MT. Vendo peças e máquinas seminovas de reposição, direto da fazenda.',
+      areaHectares: 850,
+      culturas: ['Soja', 'Milho'],
+    }),
+  });
+
+  const categorias = await chamar('/catalogo/categorias?tipo=peca&porPagina=5');
+  const categoriaId =
+    categorias.corpo?.dados?.[0]?.filhas?.[0]?.id || categorias.corpo?.dados?.[0]?.id;
+
+  const municipioAtual = await chamar(
+    `/localizacao/municipios?uf=MT&busca=${encodeURIComponent('Cuiabá')}&porPagina=1`
+  );
+  const municipioId = municipioAtual.corpo?.dados?.[0]?.id;
+
+  const PRODUTOS = [
+    {
+      arquivo: 'peca1.jpg',
+      titulo: 'Filtro de ar John Deere 6110J original',
+      descricao: 'Filtro de ar original, pouco uso, retirado de máquina em manutenção preventiva.',
+      condicao: 'usada',
+      precoCentavos: 25000,
+    },
+    {
+      arquivo: 'peca2.jpg',
+      titulo: 'Kit de embreagem para trator Massey Ferguson',
+      descricao: 'Kit completo novo, lacrado, com nota fiscal.',
+      condicao: 'nova',
+      precoCentavos: 180000,
+    },
+    {
+      arquivo: 'peca3.jpg',
+      titulo: 'Jogo de rolamentos para colheitadeira',
+      descricao: 'Jogo completo, compatível com as principais marcas. Pronta entrega.',
+      condicao: 'nova',
+      precoCentavos: 42000,
+    },
+  ];
+
+  for (const produto of PRODUTOS) {
+    const criado = await chamar('/anuncios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...autorizado },
+      body: JSON.stringify({
+        titulo: produto.titulo,
+        descricao: produto.descricao,
+        tipo: 'peca',
+        categoriaId,
+        condicao: produto.condicao,
+        negociacao: 'venda',
+        precoCentavos: produto.precoCentavos,
+        quantidade: 1,
+        municipioId,
+        uf: 'MT',
+      }),
+    });
+
+    if (!criado.ok) {
+      console.warn(`[vitrine-demo] falha ao criar "${produto.titulo}":`, criado.corpo?.erro?.mensagem);
+      continue;
+    }
+
+    const anuncioId = criado.corpo.dados.id;
+
+    const caminhoImagem = path.join(__dirname, 'seed-assets', produto.arquivo);
+    const buffer = await fs.readFile(caminhoImagem);
+    const formData = new FormData();
+    formData.append('arquivo', new Blob([buffer], { type: 'image/jpeg' }), produto.arquivo);
+    formData.append('referenciaTipo', 'anuncio');
+
+    const upload = await fetch(`${base}/midia`, { method: 'POST', headers: autorizado, body: formData });
+    const uploadCorpo = await upload.json().catch(() => null);
+    const fotoId = uploadCorpo?.dados?.[0]?.id;
+
+    if (fotoId) {
+      await chamar(`/anuncios/${anuncioId}/fotos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...autorizado },
+        body: JSON.stringify({ arquivos: [fotoId] }),
+      });
+    }
+
+    await chamar(`/anuncios/${anuncioId}/publicar`, { method: 'POST', headers: autorizado });
+
+    console.log(`[vitrine-demo] anúncio publicado: ${produto.titulo}`);
+  }
+
+  console.log(`[vitrine-demo] conta pronta — ${email} / ${senha}`);
+}
+
 async function iniciar() {
   try {
     await sequelize.authenticate();
@@ -221,6 +394,7 @@ async function iniciar() {
   const servidor = app.listen(config.app.port, () => {
     console.log(`[api] ouvindo em http://localhost:${config.app.port}${config.app.apiPrefix}`);
     criarContaDemoBootstrap().catch((erro) => console.warn('[demo-bootstrap] falha:', erro.message));
+    criarVitrineDemoBootstrap().catch((erro) => console.warn('[vitrine-demo] falha:', erro.message));
   });
 
   /* o WebSocket compartilha o mesmo servidor HTTP: porta separada exigiria
