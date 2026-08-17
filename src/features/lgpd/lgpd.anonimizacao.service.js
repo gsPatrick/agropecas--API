@@ -1,5 +1,6 @@
 'use strict';
 
+const { Op } = require('sequelize');
 const db = require('../../models');
 const config = require('../../config');
 const filas = require('../../filas');
@@ -206,6 +207,27 @@ async function executar(usuarioId, { motivo, solicitadoPor } = {}) {
 
     /* notificações são avisos endereçados à pessoa: sem pessoa, viram lixo */
     await db.Notificacao.destroy({ where: { usuario_id: usuarioId }, transaction: transacao });
+
+    /* mensagem é dado do titular só do lado que ELE escreveu — a conversa
+       inteira não é apagada (quebraria a caixa de entrada de quem ficou),
+       só o texto que saiu da própria pessoa. `remetente_id` continua
+       apontando pro usuário anonimizado; o nome que aparece na tela já sai
+       "Usuário removido" pelo update de perfil acima, sem precisar duplicar
+       marcador aqui */
+    const [mensagens] = await db.Mensagem.update(
+      { conteudo: MARCADOR.MENSAGEM },
+      { where: { remetente_id: usuarioId, conteudo: { [Op.ne]: null } }, transaction: transacao }
+    );
+    resumo.mensagensAnonimizadas = mensagens;
+
+    /* mesma regra da mensagem: só o texto que a PRÓPRIA pessoa escreveu.
+       Denúncia em que ela é a denunciada foi escrita por outra pessoa —
+       apagar o relato de quem denunciou não é direito de quem foi denunciado */
+    const [denuncias] = await db.Denuncia.update(
+      { descricao: null, evidencia_url: null },
+      { where: { denunciante_id: usuarioId }, transaction: transacao }
+    );
+    resumo.denunciasAnonimizadas = denuncias;
   });
 
   /* fora da transação: auditoria não pode desfazer junto num rollback, senão o

@@ -103,6 +103,10 @@ const MARCADOR = {
   PERFIL: 'Perfil removido',
   EMAIL: (id) => `anonimizado+${id}@removido.invalido`,
   SLUG: (id) => `usuario-removido-${String(id).slice(0, 8)}`,
+  /* só troca o CONTEÚDO que a própria pessoa escreveu — mensagem do outro
+     lado da conversa, ou denúncia feita POR outra pessoa CONTRA quem saiu,
+     não são dado do titular que está pedindo a remoção */
+  MENSAGEM: '[mensagem removida — conta anonimizada]',
 };
 
 /** blocos do export — a conta de um lojista antigo não cabe confortável em memória */
