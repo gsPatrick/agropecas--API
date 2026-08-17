@@ -29,6 +29,11 @@ const PERIODICOS = [
   /* anúncio vencido continuar na vitrine é promessa falsa para quem clica;
      de hora em hora custa um index scan em `anuncios_expira_em` */
   { trabalho: 'anuncio.expirar', cron: '20 * * * *' },
+  /* expurgo definitivo (LGPD art. 16, II): conta anonimizada continua na
+     tabela até `excluir_definitivamente_em` vencer — esse job é o único
+     lugar que apaga a linha de vez. Sem ele agendado, a promessa de "os
+     dados somem depois do prazo de retenção" nunca se cumpre sozinha */
+  { trabalho: 'lgpd.expurgar', cron: '45 3 * * *' },
 ];
 
 async function iniciar() {

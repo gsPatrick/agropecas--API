@@ -233,6 +233,9 @@ async function iniciarFilaEmbutida() {
     { trabalho: 'midia.limparOrfaos', cron: '30 3 * * *' },
     { trabalho: 'busca.agregarTermosPopulares', cron: '5 * * * *' },
     { trabalho: 'anuncio.expirar', cron: '20 * * * *' },
+    /* expurgo definitivo (LGPD art. 16, II) — sem isto, conta anonimizada
+       nunca é apagada de vez depois do prazo de retenção */
+    { trabalho: 'lgpd.expurgar', cron: '45 3 * * *' },
   ];
 
   for (const periodico of PERIODICOS) {
