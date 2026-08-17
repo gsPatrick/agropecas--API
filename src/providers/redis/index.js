@@ -46,11 +46,23 @@ function conectar() {
   return cliente;
 }
 
-/** conexão dedicada — BullMQ exige uma por worker, não compartilhável */
-const novaConexao = () =>
-  config.redis.url
-    ? new Redis(config.redis.url, { maxRetriesPerRequest: null })
-    : null;
+/**
+ * Conexão dedicada — BullMQ exige uma por fila/worker, não compartilhável.
+ *
+ * Sem handler de erro, um evento `error` sem ouvinte derruba o processo
+ * inteiro (comportamento padrão de `EventEmitter` do Node) — com REDIS_URL
+ * configurado mas o servidor fora do ar, era exatamente isso que ia
+ * acontecer na primeira fila/worker criado por `bullmq.js`. O aviso
+ * "missing 'error' handler on this Redis client" no log era o Node avisando
+ * disso antes de acontecer.
+ */
+const novaConexao = () => {
+  if (!config.redis.url) return null;
+
+  const conexao = new Redis(config.redis.url, { maxRetriesPerRequest: null });
+  conexao.on('error', () => {}); /* o cliente principal (`conectar()`) já loga o alerta */
+  return conexao;
+};
 
 const disponivel = () => Boolean(cliente && cliente.status === 'ready');
 
