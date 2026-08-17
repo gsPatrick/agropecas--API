@@ -193,6 +193,55 @@ async function criarContaDemoBootstrap() {
 }
 
 /**
+ * Consumo de fila embutido no processo web — quando não há um segundo
+ * serviço rodando `worker.js`.
+ *
+ * `worker.js` foi desenhado para subir SEPARADO da API (ver o comentário no
+ * topo daquele arquivo): job pesado não deve competir por CPU com quem
+ * espera uma tela carregar, e os dois escalam independente. Isso pressupõe
+ * dois serviços no EasyPanel — um rodando `node app.js`, outro `node worker.js`.
+ *
+ * Só existe um hoje. Com Redis conectado (visto nos logs de boot), toda
+ * escrita que passa por fila — visualização de anúncio, expiração automática,
+ * limpeza de sessão — cai no BullMQ e fica esperando um consumidor que nunca
+ * chega: a contagem de "Visualizações" travava em zero para sempre, mesmo
+ * com contato registrado (que é síncrono, por isso aparecia normalmente).
+ *
+ * A correção de fundo é configurar o segundo serviço; até lá, este processo
+ * consome a própria fila — mesma chamada que `worker.js` faz, só que aqui
+ * dentro. `WORKER_EMBUTIDO=false` desliga isto no dia em que o segundo
+ * serviço existir, para não processar o mesmo job em dois lugares.
+ */
+async function iniciarFilaEmbutida() {
+  if (process.env.WORKER_EMBUTIDO === 'false') return;
+  if (!config.redis.url) return; /* sem Redis, `filas/index.js` já roda tudo na hora */
+
+  const bullmq = require('./src/filas/adaptadores/bullmq');
+  const total = bullmq.iniciarTrabalhadores();
+  console.log(`[fila-embutida] ${total} fila(s) em consumo neste processo`);
+
+  /* mesma espera de `worker.js`: `redis.conectar()` não bloqueia até o
+     cliente ficar pronto, e `filas.agendar()` decide o adaptador olhando
+     `redis.disponivel()` — chamado cedo demais, cairia no adaptador
+     "imediato" e nenhuma rotina periódica seria agendada de verdade */
+  await new Promise((resolver) => setTimeout(resolver, 500));
+
+  const PERIODICOS = [
+    { trabalho: 'manutencao.limparSessoes', cron: '0 3 * * *' },
+    { trabalho: 'manutencao.limparTokens', cron: '15 3 * * *' },
+    { trabalho: 'manutencao.desbloquearContas', cron: '*/10 * * * *' },
+    { trabalho: 'midia.limparOrfaos', cron: '30 3 * * *' },
+    { trabalho: 'busca.agregarTermosPopulares', cron: '5 * * * *' },
+    { trabalho: 'anuncio.expirar', cron: '20 * * * *' },
+  ];
+
+  for (const periodico of PERIODICOS) {
+    await filas.agendar(periodico.trabalho, {}, { cron: periodico.cron });
+  }
+  console.log(`[fila-embutida] ${PERIODICOS.length} rotina(s) periódica(s) agendada(s)`);
+}
+
+/**
  * Vitrine de demonstração — um produtor com perfil completo e 3 anúncios
  * publicados, com foto, para a cliente ver a plataforma funcionando de
  * verdade em vez de uma tela vazia.
@@ -390,6 +439,12 @@ async function iniciar() {
      O aviso existe para que isso seja escolha, não descoberta em produção */
   redis.conectar();
   filas.conferirAmbiente();
+
+  try {
+    await iniciarFilaEmbutida();
+  } catch (erro) {
+    console.error('[fila-embutida] falha ao iniciar:', erro.message);
+  }
 
   const servidor = app.listen(config.app.port, () => {
     console.log(`[api] ouvindo em http://localhost:${config.app.port}${config.app.apiPrefix}`);
