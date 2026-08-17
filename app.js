@@ -77,6 +77,11 @@ if (config.storage.driver === 'local') {
   app.use('/uploads', express.static(path.resolve(config.storage.localPath)));
 }
 
+/* imagem fixa do site (hoje só o logo dos e-mails). Ao contrário de
+   `/uploads`, isto é versionado no git — não é conteúdo enviado por
+   usuário, é asset do próprio produto, e precisa sobreviver a um redeploy */
+app.use('/assets', express.static(path.resolve(__dirname, 'public-assets')));
+
 /* monta req.contexto antes de qualquer rota: middlewares e services contam
    com ele existindo, mesmo para visitante */
 app.use(middlewares.contexto);

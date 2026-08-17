@@ -158,5 +158,14 @@ module.exports = {
     encarregadoEmail: process.env.LGPD_ENCARREGADO_EMAIL || 'contato@agropecasmt.com.br',
   },
 
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || null,
+    /* domínio de testes do Resend por padrão — funciona sem verificar
+       domínio, mas só entrega para o e-mail dono da conta Resend. Trocar
+       para um endereço @agropecasmt.com.br assim que o domínio estiver
+       verificado lá */
+    remetente: process.env.EMAIL_FROM || 'AgroPeças MT <onboarding@resend.dev>',
+  },
+
   obrigatoria,
 };

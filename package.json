@@ -65,6 +65,7 @@
     "multer": "^2.2.0",
     "pg": "^8.12.0",
     "pg-hstore": "^2.3.4",
+    "resend": "^6.20.0",
     "sequelize": "^6.37.3",
     "sequelize-cli": "^6.6.2",
     "sharp": "^0.35.3",

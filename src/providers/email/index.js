@@ -1,52 +1,69 @@
 'use strict';
 
+const { Resend } = require('resend');
 const config = require('../../config');
+const templates = require('./templates');
 
 /**
- * Provider de e-mail.
+ * Provider de e-mail — Resend.
  *
- * Hoje só registra no console: o objetivo é que a feature de auth já chame a
- * interface certa. Trocar por SMTP/Resend/SES é reescrever apenas `enviar`,
- * sem tocar em service nenhum.
+ * Em desenvolvimento continua só registrando no console: e-mail de teste
+ * automático (cadastro de conta demo no boot, testes manuais) não pode
+ * disparar para caixa de entrada de verdade nem gastar cota da conta Resend.
+ * Em produção, sem `RESEND_API_KEY` configurada, cai no mesmo aviso de
+ * antes — falha de e-mail nunca pode derrubar cadastro/login, só avisa.
  *
- * Toda mensagem é montada a partir de `templates_notificacao` quando existir;
- * o texto embutido aqui é só o fallback do desenvolvimento.
+ * `EMAIL_FROM` sem configurar usa o domínio de testes do Resend
+ * (`onboarding@resend.dev`), que funciona sem verificação de domínio — mas
+ * ele só entrega para o próprio e-mail cadastrado na conta Resend. Assim que
+ * `agropecasmt.com.br` estiver verificado lá, troca `EMAIL_FROM` para um
+ * endereço desse domínio.
  */
 
-const MODELOS = {
-  verificacao_email: ({ nome, codigo, link }) => ({
-    assunto: 'Confirme seu e-mail — AgroPeças MT',
-    texto: `Olá, ${nome}!\n\nSeu código de confirmação é ${codigo}.\nOu acesse: ${link}\n\nO código vale por 30 minutos.`,
-  }),
-  recuperacao_senha: ({ nome, codigo, link }) => ({
-    assunto: 'Recuperação de senha — AgroPeças MT',
-    texto: `Olá, ${nome}!\n\nSeu código para criar uma nova senha é ${codigo}.\nOu acesse: ${link}\n\nO código vale por 15 minutos. Se não foi você, ignore este e-mail.`,
-  }),
-  senha_alterada: ({ nome }) => ({
-    assunto: 'Sua senha foi alterada — AgroPeças MT',
-    texto: `Olá, ${nome}!\n\nA senha da sua conta acabou de ser alterada. Se não foi você, fale com a gente imediatamente.`,
-  }),
-  boas_vindas: ({ nome }) => ({
-    assunto: 'Bem-vindo à AgroPeças MT',
-    texto: `Olá, ${nome}!\n\nSua conta está pronta. Publique seu primeiro anúncio em ${config.app.webUrl}.`,
-  }),
-};
+let cliente = null;
+function resend() {
+  if (!config.email.resendApiKey) return null;
+  if (!cliente) cliente = new Resend(config.email.resendApiKey);
+  return cliente;
+}
 
 async function enviar({ para, modelo, dados = {}, assunto, texto }) {
-  const montado = modelo && MODELOS[modelo] ? MODELOS[modelo](dados) : { assunto, texto };
+  const montado = modelo && templates[modelo] ? templates[modelo](dados) : { assunto, texto };
 
   if (config.app.env !== 'production') {
     console.log('\n─── [email] ──────────────────────────────');
     console.log(`para   : ${para}`);
     console.log(`assunto: ${montado.assunto}`);
-    console.log(montado.texto);
+    console.log(montado.texto || '(sem versão em texto)');
     console.log('──────────────────────────────────────────\n');
     return { entregue: true, simulado: true };
   }
 
-  // TODO: integrar provedor real. Falha de e-mail NÃO deve derrubar o cadastro.
-  console.warn('[email] provider real não configurado — mensagem descartada');
-  return { entregue: false, simulado: false };
+  const provedor = resend();
+  if (!provedor) {
+    console.warn('[email] RESEND_API_KEY não configurada — mensagem descartada');
+    return { entregue: false, simulado: false };
+  }
+
+  try {
+    const { data, error } = await provedor.emails.send({
+      from: config.email.remetente,
+      to: para,
+      subject: montado.assunto,
+      html: montado.html,
+      text: montado.texto,
+    });
+
+    if (error) {
+      console.error('[email] Resend recusou o envio:', error.message || error);
+      return { entregue: false, simulado: false };
+    }
+
+    return { entregue: true, simulado: false, id: data?.id };
+  } catch (erro) {
+    console.error('[email] falha ao enviar:', erro.message);
+    return { entregue: false, simulado: false };
+  }
 }
 
-module.exports = { enviar, MODELOS };
+module.exports = { enviar, templates };
