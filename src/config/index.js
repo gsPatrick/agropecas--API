@@ -68,10 +68,19 @@ module.exports = {
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
     jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
     bcryptRounds: Number(process.env.BCRYPT_ROUNDS || 12),
-    corsOrigens: (process.env.CORS_ORIGENS || '*')
-      .split(',')
-      .map((origem) => origem.trim())
-      .filter(Boolean),
+    /* domínio do site fixo aqui, além do que vier de CORS_ORIGENS: já aconteceu
+       do env ficar configurado só com "www" (ou só sem), e o outro formato
+       apanhar no CORS — com/sem "www" são origens diferentes pro navegador */
+    corsOrigens: Array.from(
+      new Set([
+        ...(process.env.CORS_ORIGENS || '*')
+          .split(',')
+          .map((origem) => origem.trim())
+          .filter(Boolean),
+        'https://www.agropecasmt.com',
+        'https://agropecasmt.com',
+      ])
+    ),
   },
 
   auth: {
