@@ -30,6 +30,7 @@ require('./trabalhos/auditoria.trabalho');
 require('./trabalhos/anuncio.trabalho');
 require('./trabalhos/notificacao.trabalho');
 require('./trabalhos/midia.trabalho');
+require('./trabalhos/pagamento.trabalho');
 
 let bullmq = null;
 

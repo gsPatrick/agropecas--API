@@ -29,6 +29,11 @@ const PERIODICOS = [
   /* anúncio vencido continuar na vitrine é promessa falsa para quem clica;
      de hora em hora custa um index scan em `anuncios_expira_em` */
   { trabalho: 'anuncio.expirar', cron: '20 * * * *' },
+  /* reserva de peça sem pagamento volta ao estoque — a cada 5 min porque
+     a reserva é de 1h: esperar a hora cheia dobraria o tempo da peça fora */
+  { trabalho: 'pedido.expirarReservas', cron: '*/5 * * * *' },
+  /* repasse liberado após 7 dias sem confirmação nem disputa */
+  { trabalho: 'pedido.liberarAutomaticamente', cron: '40 * * * *' },
   /* expurgo definitivo (LGPD art. 16, II): conta anonimizada continua na
      tabela até `excluir_definitivamente_em` vencer — esse job é o único
      lugar que apaga a linha de vez. Sem ele agendado, a promessa de "os

@@ -100,6 +100,8 @@ const PAPEIS = [
       ...propriasDoRecurso('notificacao'),
       ...propriasDoRecurso('lgpd'),
       ...propriasDoRecurso('arquivo'),
+      ...propriasDoRecurso('pedido'),
+      ...propriasDoRecurso('repasse'),
       'plano.ler',
     ],
   },

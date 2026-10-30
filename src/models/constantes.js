@@ -80,6 +80,21 @@ module.exports = {
   ],
   TITULAR_SOLICITACAO_STATUS: ['aberta', 'em_atendimento', 'concluida', 'recusada'],
 
+  /* compra com custódia (Maturacao/06). `entregue` = recebimento confirmado
+     (comprador, Admin ou liberação automática) e repasse disponível;
+     `concluido` = repasse pago ao vendedor */
+  PEDIDO_STATUS: [
+    'aguardando_pagamento',
+    'pago',
+    'em_disputa',
+    'entregue',
+    'concluido',
+    'cancelado',
+    'reembolsado',
+  ],
+  REPASSE_STATUS: ['retido', 'disponivel', 'pago', 'cancelado'],
+  CHAVE_PIX_TIPO: ['cpf', 'cnpj', 'email', 'telefone', 'aleatoria'],
+
   ASSINATURA_STATUS: ['ativa', 'cancelada', 'expirada', 'inadimplente', 'periodo_teste'],
   PLANO_PERIODICIDADE: ['mensal', 'trimestral', 'anual', 'vitalicio'],
 

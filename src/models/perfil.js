@@ -1,6 +1,6 @@
 'use strict';
 
-const { PERFIL_TIPO, PESSOA_TIPO, DOCUMENTO_TIPO } = require('./constantes');
+const { PERFIL_TIPO, PESSOA_TIPO, DOCUMENTO_TIPO, CHAVE_PIX_TIPO } = require('./constantes');
 
 /**
  * Perfil — o rosto público do usuário: Produtor Rural, Loja de Peças ou
@@ -87,6 +87,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       raio_entrega_km: { type: DataTypes.INTEGER, allowNull: true, comment: 'loja' },
       prazo_resposta_horas: { type: DataTypes.INTEGER, allowNull: true, comment: 'loja' },
+
+      /* para onde a Admin faz o PIX do repasse (Maturacao/06) — dado
+         pessoal: nunca sai em mapper público */
+      chave_pix: { type: DataTypes.STRING(140), allowNull: true },
+      chave_pix_tipo: { type: DataTypes.ENUM(...CHAVE_PIX_TIPO), allowNull: true },
 
       verificado_em: { type: DataTypes.DATE, allowNull: true },
       verificado_por: { type: DataTypes.UUID, allowNull: true },

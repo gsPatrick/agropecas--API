@@ -40,6 +40,17 @@ const FILAS = {
     descricao: 'Recalcular texto de busca e contadores do anúncio',
   },
 
+  /* fila própria: notificação do Mercado Pago não pode esperar atrás de
+     lote de e-mail, e a consulta ao MP pode falhar e precisar de retentativa
+     com espera longa (o MP às vezes notifica antes de o pagamento estar
+     consultável) */
+  PAGAMENTO: {
+    nome: 'pagamento',
+    concorrencia: 5,
+    tentativas: 6,
+    descricao: 'Notificações do Mercado Pago e rotinas de pedido',
+  },
+
   MANUTENCAO: {
     nome: 'manutencao',
     concorrencia: 1,

@@ -98,7 +98,7 @@ const SUITES = [
   'auth.fluxo', 'auth.rbac', 'auth.seguranca', 'configuracao', 'usuario', 'midia',
   'catalogo', 'perfil', 'localizacao', 'busca', 'anuncio', 'favorito', 'contato',
   'conversa', 'notificacao', 'denuncia', 'moderacao', 'plano', 'relatorio', 'lgpd',
-  'auditoria',
+  'auditoria', 'pedido',
   'admin.catalogo', 'admin.comunidade', 'admin.conformidade', 'admin.conteudo',
   'admin.painel', 'admin.plataforma', 'admin.usuarios', 'admin.seguranca',
   'sistema.seguranca',
@@ -108,6 +108,11 @@ async function principal() {
   await garantirBanco();
   sequelizeCli('db:migrate');
   if (await precisaSeed()) sequelizeCli('db:seed:all');
+  /* o seed só roda em banco vazio, então permissão criada depois (ex.:
+     `pedido.*`) nunca chegaria a um banco de teste já existente. O
+     sincronizador é idempotente — rodar sempre custa um SELECT por chave */
+  const sincronizacao = spawnSync('node', ['scripts/rbac-sync.js'], { cwd: RAIZ, env: ambiente, stdio: 'inherit' });
+  if (sincronizacao.status !== 0) process.exit(sincronizacao.status || 1);
 
   const pedidas = process.argv.slice(2);
   const alvos = (pedidas.length ? pedidas : SUITES).map((n) => n.replace(/\.test\.js$/, ''));

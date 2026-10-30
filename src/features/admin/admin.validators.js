@@ -510,6 +510,25 @@ const configuracao = esquema({
  * de `chave` e `nome` na criação é `plataforma`, que sabe qual das duas
  * operações está rodando.
  */
+const contaPagamento = esquema({
+  apelido: campos.texto().min(2).max(80),
+  tipoPessoa: campos.umDe(['fisica', 'juridica']),
+  modo: campos.umDe(['teste', 'producao']),
+  accessToken: campos.texto().min(20).max(300),
+  publicKey: campos.texto().max(120).opcional(),
+  webhookSecret: campos.texto().max(200).opcional(),
+  ativar: campos.booleano().opcional(),
+});
+
+const contaPagamentoEdicao = esquema({
+  apelido: campos.texto().min(2).max(80).opcional(),
+  tipoPessoa: campos.umDe(['fisica', 'juridica']).opcional(),
+  modo: campos.umDe(['teste', 'producao']).opcional(),
+  accessToken: campos.texto().min(20).max(300).opcional(),
+  publicKey: campos.texto().max(120).opcional(),
+  webhookSecret: campos.texto().max(200).opcional(),
+});
+
 const plano = esquema({
   chave: campos
     .texto()
@@ -687,6 +706,9 @@ module.exports = {
   motivoOpcional,
   papel,
   loteSancao,
+
+  contaPagamento,
+  contaPagamentoEdicao,
 
   listarPerfis,
   verificacao,

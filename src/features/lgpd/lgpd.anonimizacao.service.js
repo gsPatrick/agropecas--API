@@ -174,6 +174,10 @@ async function executar(usuarioId, { motivo, solicitadoPor } = {}) {
           aceita_chat: false,
           propriedade_nome: null,
           verificacao_observacao: null,
+          /* a cópia da chave em `repasses` fica: comprovante de pagamento
+             feito é obrigação fiscal, base legal própria (art. 16, I) */
+          chave_pix: null,
+          chave_pix_tipo: null,
         },
         { transaction: transacao }
       );

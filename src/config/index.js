@@ -162,6 +162,35 @@ module.exports = {
     orfaosPorRodada: Number(process.env.MIDIA_ORFAOS_POR_RODADA || 200),
   },
 
+  /**
+   * Pagamento — Checkout Pro do Mercado Pago, com custódia na conta da
+   * plataforma (Maturacao/06). O dinheiro do comprador cai inteiro na conta
+   * da AgroPeças; o que é do vendedor vira `repasses` e sai por PIX manual.
+   */
+  pagamento: {
+    /* sem token o checkout responde 503 — nunca finge uma compra */
+    accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || null,
+    publicKey: process.env.MERCADOPAGO_PUBLIC_KEY || null,
+    /* "assinatura secreta" da aplicação no painel do MP (Webhooks →
+       Configurar notificações). Sem ela, produção recusa todo webhook:
+       aceitar notificação não assinada é deixar qualquer um marcar pedido
+       como pago — o pagamento é sempre reconsultado na API, mas o webhook
+       ainda dispararia trabalho e consulta à vontade de quem chamasse */
+    webhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET || null,
+    /* URL pública que o MP chama. Em dev, um túnel (ngrok); sem ela o
+       pedido ainda se resolve pela volta do checkout (`/sincronizar`) */
+    webhookUrl: process.env.MERCADOPAGO_WEBHOOK_URL || null,
+    /* porcentagem, não fração: 10 = 10% */
+    comissaoPercentual: Number(process.env.PLATFORM_COMMISSION_PERCENTAGE ?? 10),
+    /* quanto tempo a peça fica reservada esperando o pagamento. Curto de
+       propósito: anúncio de quantidade 1 fica fora da vitrine enquanto isso */
+    reservaMinutos: Number(process.env.PAGAMENTO_RESERVA_MINUTOS || 60),
+    /* sem confirmação nem disputa do comprador, o repasse libera sozinho */
+    liberacaoAutomaticaDias: Number(process.env.PAGAMENTO_LIBERACAO_DIAS || 7),
+    /* aparece na fatura do cartão do comprador (até 13 caracteres no MP) */
+    descricaoFatura: process.env.PAGAMENTO_DESCRICAO_FATURA || 'AGROPECASMT',
+  },
+
   lgpd: {
     retencaoDias: Number(process.env.LGPD_RETENCAO_DIAS || 180),
     encarregadoEmail: process.env.LGPD_ENCARREGADO_EMAIL || 'contato@agropecasmt.com.br',

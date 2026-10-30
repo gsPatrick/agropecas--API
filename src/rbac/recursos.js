@@ -96,6 +96,36 @@ const RECURSOS = {
     },
   },
 
+  // ─── COMPRAS (Maturacao/06) ────────────────────────────────
+  /**
+   * `proprio` em pedido cobre os DOIS lados: o comprador e o vendedor leem o
+   * mesmo pedido. O service confere quem é quem — `donoId` sozinho não
+   * expressa "um de dois donos".
+   */
+  pedido: {
+    rotulo: 'Pedidos',
+    acoes: {
+      comprar: { escopos: [], descricao: 'Comprar peça pelo checkout' },
+      ler: { escopos: ['proprio', 'todos'], descricao: 'Ver pedidos (compras e vendas)' },
+      cancelar: { escopos: ['proprio', 'todos'], descricao: 'Cancelar pedido aguardando pagamento' },
+      confirmar_recebimento: {
+        escopos: ['proprio', 'todos'],
+        descricao: 'Confirmar recebimento — no escopo `todos`, é a Admin liberando o repasse',
+      },
+      disputar: { escopos: ['proprio'], descricao: 'Abrir disputa sobre a entrega' },
+      reembolsar: { escopos: ['todos'], descricao: 'Estornar o pagamento ao comprador' },
+    },
+  },
+
+  repasse: {
+    rotulo: 'Repasses',
+    acoes: {
+      ler: { escopos: ['proprio', 'todos'], descricao: 'Ver extrato de valores retidos e disponíveis' },
+      configurar_pix: { escopos: ['proprio'], descricao: 'Cadastrar a chave PIX de recebimento' },
+      pagar: { escopos: ['todos'], descricao: 'Registrar o PIX feito ao vendedor' },
+    },
+  },
+
   // ─── CONVERSAS ─────────────────────────────────────────────
   conversa: {
     rotulo: 'Conversas',

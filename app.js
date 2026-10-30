@@ -238,6 +238,11 @@ async function iniciarFilaEmbutida() {
     { trabalho: 'midia.limparOrfaos', cron: '30 3 * * *' },
     { trabalho: 'busca.agregarTermosPopulares', cron: '5 * * * *' },
     { trabalho: 'anuncio.expirar', cron: '20 * * * *' },
+  /* reserva de peça sem pagamento volta ao estoque — a cada 5 min porque
+     a reserva é de 1h: esperar a hora cheia dobraria o tempo da peça fora */
+  { trabalho: 'pedido.expirarReservas', cron: '*/5 * * * *' },
+  /* repasse liberado após 7 dias sem confirmação nem disputa */
+  { trabalho: 'pedido.liberarAutomaticamente', cron: '40 * * * *' },
     /* expurgo definitivo (LGPD art. 16, II) — sem isto, conta anonimizada
        nunca é apagada de vez depois do prazo de retenção */
     { trabalho: 'lgpd.expurgar', cron: '45 3 * * *' },

@@ -11,6 +11,8 @@ const catalogo = require('./controllers/admin.catalogo.controller');
 const comunidade = require('./controllers/admin.comunidade.controller');
 const plataforma = require('./controllers/admin.plataforma.controller');
 const conformidade = require('./controllers/admin.conformidade.controller');
+const financeiro = require('./controllers/admin.financeiro.controller');
+const esquemasPedido = require('../pedido/pedido.validators');
 
 const esquemas = require('./admin.validators');
 
@@ -145,6 +147,27 @@ router.get('/rbac/permissoes', autorizar('rbac.ler'), plataforma.listarPermissoe
 router.post('/rbac/papeis', rateLimit.escrita(), autorizar('rbac.criar_papel'), validar(esquemas.papelNovo), plataforma.criarPapel);
 router.patch('/rbac/papeis/:id', rateLimit.escrita(), autorizar('rbac.editar_papel'), validar.params(esquemas.identificador), validar(esquemas.papelEdicao), plataforma.editarPapel);
 router.delete('/rbac/papeis/:id', rateLimit.escrita(), autorizar('rbac.remover_papel'), validar.params(esquemas.identificador), plataforma.removerPapel);
+
+// ─── FINANCEIRO: VENDAS, CUSTÓDIA E REPASSES ───────────────────
+/* "Liberar repasse" é confirmar recebimento com escopo `todos` — a mesma
+   regra do comprador, assinada pela Admin no histórico do pedido */
+router.get('/vendas', autorizar('pedido.ler.todos'), validar.query(esquemasPedido.listarAdmin), financeiro.listarVendas);
+router.get('/vendas/:id', autorizar('pedido.ler.todos'), validar.params(esquemas.identificador), financeiro.verVenda);
+router.post('/vendas/:id/liberar', rateLimit.escrita(), autorizar('pedido.confirmar_recebimento.todos'), validar.params(esquemas.identificador), validar(esquemasPedido.motivoOpcional), financeiro.liberarRepasse);
+router.post('/vendas/:id/reembolsar', rateLimit.escrita(), autorizar('pedido.reembolsar.todos'), validar.params(esquemas.identificador), validar(esquemasPedido.motivoObrigatorio), financeiro.reembolsar);
+router.post('/vendas/:id/cancelar', rateLimit.escrita(), autorizar('pedido.cancelar.todos'), validar.params(esquemas.identificador), validar(esquemasPedido.motivoOpcional), financeiro.cancelar);
+router.get('/repasses', autorizar('repasse.ler.todos'), validar.query(esquemasPedido.listarRepassesAdmin), financeiro.listarRepasses);
+
+/* contas do Mercado Pago: credenciais sensíveis, então o escopo é o de
+   configuração — quem edita configuração da plataforma troca a conta */
+router.get('/contas-mercadopago', autorizar('configuracao.ler'), financeiro.listarContas);
+router.post('/contas-mercadopago', rateLimit.escrita(), autorizar('configuracao.editar'), validar(esquemas.contaPagamento), financeiro.criarConta);
+router.patch('/contas-mercadopago/:id', rateLimit.escrita(), autorizar('configuracao.editar'), validar.params(esquemas.identificador), validar(esquemas.contaPagamentoEdicao), financeiro.editarConta);
+router.post('/contas-mercadopago/:id/testar', rateLimit.escrita(), autorizar('configuracao.editar'), validar.params(esquemas.identificador), financeiro.testarConta);
+router.post('/contas-mercadopago/:id/ativar', rateLimit.escrita(), autorizar('configuracao.editar'), validar.params(esquemas.identificador), financeiro.ativarConta);
+router.delete('/contas-mercadopago/:id', rateLimit.escrita(), autorizar('configuracao.editar'), validar.params(esquemas.identificador), financeiro.removerConta);
+
+router.post('/repasses/:id/pagar', rateLimit.escrita(), autorizar('repasse.pagar.todos'), validar.params(esquemas.identificador), validar(esquemasPedido.pagarRepasse), financeiro.pagarRepasse);
 
 // ─── CONFORMIDADE: LGPD E AUDITORIA ────────────────────────────
 router.get('/lgpd/solicitacoes', autorizar('lgpd.ler_solicitacoes'), validar.query(esquemas.listarSolicitacoes), conformidade.listarSolicitacoes);

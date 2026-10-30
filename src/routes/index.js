@@ -51,6 +51,9 @@ router.use('/v1/moderacao', require('../features/moderacao/moderacao.routes'));
 router.use('/v1/planos', require('../features/plano/plano.routes'));
 router.use('/v1/relatorios', require('../features/relatorio/relatorio.routes'));
 router.use('/v1/busca', require('../features/busca/busca.routes'));
+router.use('/v1/pedidos', require('../features/pedido/pedido.routes'));
+router.use('/v1/repasses', require('../features/pedido/repasse.routes'));
+router.use('/v1/pagamentos', require('../features/pedido/pagamento.routes'));
 // router.use('/v1/anuncios', require('../features/anuncio/anuncio.routes'));
 router.use('/v1/admin', require('../features/admin/admin.routes'));
 
